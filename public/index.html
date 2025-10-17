@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Node.js Quiz</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 20px auto;
+      background: #f0f4f8;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    /* Common */
+    button {
+      padding: 12px 20px;
+      font-size: 1em;
+      cursor: pointer;
+      background: #2980b9;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background: #1c5980;
+    }
+
+    /* Home Screen */
+    #home-screen {
+      text-align: center;
+    }
+
+    /* Quiz Screen */
+    #quiz-screen {
+      display: none;
+    }
+    .question {
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #ccc;
+    }
+    .question p {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .options label {
+      display: block;
+      margin-bottom: 8px;
+      padding: 10px 12px;
+      border: 2px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.3s, border-color 0.3s, transform 0.2s;
+      position: relative;
+    }
+    .options input[type="radio"] {
+      display: none;
+    }
+    /* Animation on selecting option */
+    .options input[type="radio"]:checked + span,
+    .options input[type="radio"]:checked + label {
+      background-color: #3498db;
+      color: white;
+      border-color: #2980b9;
+      transform: scale(1.05);
+      font-weight: bold;
+    }
+    .options label span {
+      display: inline-block;
+      width: 100%;
+    }
+    /* Use this trick to allow click on label, but style span inside */
+    .options input[type="radio"]:checked + span {
+      background-color: #3498db;
+      color: white;
+      border-radius: 6px;
+    }
+
+    /* Submit button */
+    #submit-btn {
+      margin-top: 20px;
+      display: none;
+      width: 100%;
+    }
+
+    /* Result Screen */
+    #result-screen {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    #result-screen h2 {
+      margin-bottom: 20px;
+      color: #27ae60;
+    }
+    #badge {
+      margin-top: 20px;
+      font-size: 3rem;
+    }
+    /* Badge styles */
+    .badge-gold {
+      color: #FFD700;
+      text-shadow: 0 0 10px #FFD700;
+    }
+    .badge-silver {
+      color: #C0C0C0;
+      text-shadow: 0 0 10px #C0C0C0;
+    }
+    .badge-bronze {
+      color: #CD7F32;
+      text-shadow: 0 0 10px #CD7F32;
+    }
+    .badge-none {
+      color: #888;
+      font-size: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Node.js Quiz</h1>
+
+  <!-- Home Screen -->
+  <div id="home-screen">
+    <p>Welcome to the IT Department Quiz! Test your knowledge.</p>
+    <button id="start-btn">Start Quiz</button>
+  </div>
+
+  <!-- Quiz Screen -->
+  <div id="quiz-screen">
+    <form id="quiz-form"></form>
+    <button id="submit-btn">Submit</button>
+  </div>
+
+  <!-- Result Screen -->
+  <div id="result-screen">
+    <h2>Your Score</h2>
+    <div id="score-text"></div>
+    <div id="badge"></div>
+    <button id="restart-btn" style="margin-top: 30px;">Restart Quiz</button>
+  </div>
+
+<script>
+  const homeScreen = document.getElementById('home-screen');
+  const startBtn = document.getElementById('start-btn');
+
+  const quizScreen = document.getElementById('quiz-screen');
+  const quizForm = document.getElementById('quiz-form');
+  const submitBtn = document.getElementById('submit-btn');
+
+  const resultScreen = document.getElementById('result-screen');
+  const scoreText = document.getElementById('score-text');
+  const badgeDiv = document.getElementById('badge');
+  const restartBtn = document.getElementById('restart-btn');
+
+  let quizData = [];
+
+  startBtn.addEventListener('click', () => {
+    homeScreen.style.display = 'none';
+    quizScreen.style.display = 'block';
+    submitBtn.style.display = 'none';
+    fetchQuiz();
+  });
+
+  restartBtn.addEventListener('click', () => {
+    resultScreen.style.display = 'none';
+    homeScreen.style.display = 'block';
+    quizForm.innerHTML = '';
+  });
+
+  async function fetchQuiz() {
+    const res = await fetch('/api/quiz');
+    quizData = await res.json();
+    renderQuiz();
+  }
+
+  function renderQuiz() {
+    quizForm.innerHTML = '';
+    quizData.forEach(q => {
+      const div = document.createElement('div');
+      div.classList.add('question');
+      div.innerHTML = `<p><strong>Q${q.id}:</strong> ${q.question}</p>`;
+
+      const optionsDiv = document.createElement('div');
+      optionsDiv.classList.add('options');
+
+      q.options.forEach((option, index) => {
+        const label = document.createElement('label');
+        label.setAttribute('for', `q${q.id}_opt${index}`);
+        label.innerHTML = `<span>${option}</span>`;
+        
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = `q${q.id}`;
+        input.id = `q${q.id}_opt${index}`;
+        input.value = option;
+        input.required = true;
+
+        input.addEventListener('change', () => {
+          submitBtn.style.display = allQuestionsAnswered() ? 'block' : 'none';
+
+          label.style.transition = 'transform 0.2s ease';
+          label.style.transform = 'scale(1.1)';
+          setTimeout(() => {
+            label.style.transform = 'scale(1)';
+          }, 200);
+        });
+
+        label.prepend(input);
+        optionsDiv.appendChild(label);
+      });
+
+      div.appendChild(optionsDiv);
+      quizForm.appendChild(div);
+    });
+  }
+
+  function allQuestionsAnswered() {
+    const formData = new FormData(quizForm);
+    return quizData.every(q => formData.get(`q${q.id}`));
+  }
+
+  submitBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+
+    if (!allQuestionsAnswered()) {
+      alert('Please answer all questions before submitting!');
+      return;
+    }
+
+    const formData = new FormData(quizForm);
+    const answers = {};
+    quizData.forEach(q => {
+      answers[q.id] = formData.get(`q${q.id}`);
+    });
+
+    submitBtn.disabled = true;
+
+    const res = await fetch('/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(answers),
+    });
+    const result = await res.json();
+
+    showResult(result.score, result.total);
+  });
+
+  function showResult(score, total) {
+    quizScreen.style.display = 'none';
+    resultScreen.style.display = 'block';
+    submitBtn.disabled = false;
+
+    scoreText.textContent = `You scored ${score} out of ${total}`;
+
+    const percentage = (score / total) * 100;
+    badgeDiv.className = ''; // reset class
+    if (percentage === 100) {
+      badgeDiv.textContent = '🏅 Gold Badge 🏅';
+      badgeDiv.classList.add('badge-gold');
+    } else if (percentage >= 70) {
+      badgeDiv.textContent = '🥈 Silver Badge 🥈';
+      badgeDiv.classList.add('badge-silver');
+    } else if (percentage >= 40) {
+      badgeDiv.textContent = '🥉 Bronze Badge 🥉';
+      badgeDiv.classList.add('badge-bronze');
+    } else {
+      badgeDiv.textContent = 'No badge. Keep practicing!';
+      badgeDiv.classList.add('badge-none');
+    }
+  }
+</script>
+
+</body>
+</html>
